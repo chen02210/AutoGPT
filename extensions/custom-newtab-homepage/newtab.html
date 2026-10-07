@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>My Start Page</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="search-wrap">
+      <input id="search-input" type="text" placeholder="搜索 Google，或直接输入网址…" autofocus>
+    </div>
+    <div class="topbar-actions">
+      <button id="add-category-btn" class="btn btn-ghost" title="新增分类">+ 分类</button>
+      <button id="export-btn" class="btn btn-ghost" title="导出数据">导出</button>
+      <button id="import-btn" class="btn btn-ghost" title="导入数据">导入</button>
+      <input id="import-file" type="file" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <main id="board" class="board"></main>
+
+  <!-- Add/Edit site modal -->
+  <div id="site-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="site-modal-title">添加网址</h3>
+      <label>名称</label>
+      <input id="site-name-input" type="text" placeholder="例如：GitHub">
+      <label>网址</label>
+      <input id="site-url-input" type="text" placeholder="例如：https://github.com">
+      <input type="hidden" id="site-id-input">
+      <input type="hidden" id="site-category-input">
+      <div class="modal-actions">
+        <button id="site-delete-btn" class="btn btn-danger hidden">删除</button>
+        <div class="spacer"></div>
+        <button id="site-cancel-btn" class="btn btn-ghost">取消</button>
+        <button id="site-save-btn" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category rename modal -->
+  <div id="category-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>分类名称</h3>
+      <input id="category-name-input" type="text" placeholder="例如：常用">
+      <input type="hidden" id="category-id-input">
+      <div class="modal-actions">
+        <button id="category-delete-btn" class="btn btn-danger hidden">删除分类</button>
+        <div class="spacer"></div>
+        <button id="category-cancel-btn" class="btn btn-ghost">取消</button>
+        <button id="category-save-btn" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
