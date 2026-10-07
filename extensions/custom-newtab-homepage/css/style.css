@@ -28,20 +28,40 @@ body {
   padding: 28px 40px 8px;
 }
 
-.search-wrap { flex: 1; max-width: 640px; margin: 0 auto; }
-
-#search-input {
-  width: 100%;
-  padding: 14px 20px;
-  font-size: 16px;
+.search-wrap {
+  flex: 1;
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.08);
   background: var(--card);
-  color: var(--text);
-  outline: none;
   transition: border-color .15s;
 }
-#search-input:focus { border-color: var(--accent); }
+.search-wrap:focus-within { border-color: var(--accent); }
+
+#engine-select {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 0 4px 0 18px;
+  outline: none;
+  cursor: pointer;
+}
+#engine-select option { background: var(--card); color: var(--text); }
+
+#search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 20px 14px 10px;
+  font-size: 16px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+}
 
 .topbar-actions {
   position: absolute;
@@ -141,7 +161,24 @@ body {
   user-select: none;
   transition: background .15s, transform .1s;
 }
+a.site-tile { text-decoration: none; color: inherit; }
 .site-tile:hover { background: var(--card-hover); }
+.tile-edit {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.site-tile:hover .tile-edit { opacity: 1; }
+.tile-edit:hover { background: rgba(255,255,255,0.1); color: var(--text); }
 .site-tile.dragging { opacity: 0.35; }
 .site-tile .favicon {
   width: 28px;

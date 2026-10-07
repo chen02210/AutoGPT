@@ -2,13 +2,12 @@ let state = { categories: [] };
 
 const board = document.getElementById("board");
 
+// Chrome's local favicon cache (needs the "favicon" permission); no network request.
 function faviconFor(url) {
-  try {
-    const host = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?sz=64&domain=${host}`;
-  } catch {
-    return "";
-  }
+  const u = new URL(chrome.runtime.getURL("/_favicon/"));
+  u.searchParams.set("pageUrl", url);
+  u.searchParams.set("size", "64");
+  return u.toString();
 }
 
 function initials(name) {
@@ -53,7 +52,7 @@ function renderCategory(cat) {
   header.className = "category-header";
   header.draggable = true;
   header.addEventListener("dragstart", (e) => onCategoryHeaderDragStart(e, cat.id));
-  header.addEventListener("dragend", (e) => e.currentTarget.classList.remove("dragging"));
+  header.addEventListener("dragend", onDragEnd);
 
   const title = document.createElement("div");
   title.className = "category-title";
@@ -95,26 +94,39 @@ function renderCategory(cat) {
 }
 
 function renderSiteTile(catId, item) {
-  const tile = document.createElement("div");
+  const tile = document.createElement("a");
   tile.className = "site-tile";
+  tile.href = item.url;
+  tile.title = item.url;
   tile.draggable = true;
   tile.dataset.categoryId = catId;
   tile.dataset.itemId = item.id;
 
   tile.addEventListener("dragstart", (e) => onSiteDragStart(e, catId, item.id));
-  tile.addEventListener("dragend", (e) => e.currentTarget.classList.remove("dragging"));
+  tile.addEventListener("dragend", onDragEnd);
   tile.addEventListener("dragover", onSiteDragOver);
+
+  const editBtn = document.createElement("button");
+  editBtn.className = "tile-edit";
+  editBtn.textContent = "✎";
+  editBtn.title = "编辑";
+  editBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openSiteModal(catId, item);
+  });
+  tile.appendChild(editBtn);
 
   const fav = document.createElement("div");
   fav.className = "favicon";
+  fav.textContent = initials(item.name);
   const img = document.createElement("img");
-  img.src = faviconFor(item.url);
   img.alt = "";
-  img.onerror = () => {
-    fav.innerHTML = "";
-    fav.textContent = initials(item.name);
+  img.onload = () => {
+    fav.textContent = "";
+    fav.appendChild(img);
   };
-  fav.appendChild(img);
+  img.src = faviconFor(item.url);
 
   const name = document.createElement("div");
   name.className = "site-name";
@@ -123,9 +135,6 @@ function renderSiteTile(catId, item) {
   tile.appendChild(fav);
   tile.appendChild(name);
 
-  tile.addEventListener("click", () => {
-    window.location.href = item.url;
-  });
   tile.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     openSiteModal(catId, item);
@@ -139,26 +148,39 @@ function renderSiteTile(catId, item) {
 let dragPayload = null; // { type: 'site'|'category', ... }
 
 function onSiteDragStart(e, catId, itemId) {
+  e.stopPropagation();
   dragPayload = { type: "site", catId, itemId };
   e.currentTarget.classList.add("dragging");
   e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", itemId);
+}
+
+// Re-render only here: removing the drag source in `drop` would detach it before
+// `dragend` fires, and a cancelled drop must also discard the DOM preview.
+function onDragEnd() {
+  dragPayload = null;
+  render();
 }
 
 function onSiteDragOver(e) {
   if (!dragPayload || dragPayload.type !== "site") return;
   e.preventDefault();
   const target = e.currentTarget;
-  const grid = target.parentElement;
-  const dragging = grid.querySelector(".site-tile.dragging");
+  const dragging = document.querySelector(".site-tile.dragging");
   if (!dragging || dragging === target) return;
   const rect = target.getBoundingClientRect();
   const before = e.clientX < rect.left + rect.width / 2;
-  grid.insertBefore(dragging, before ? target : target.nextSibling);
+  target.parentElement.insertBefore(dragging, before ? target : target.nextSibling);
 }
 
 function onItemsGridDragOver(e) {
   if (!dragPayload || dragPayload.type !== "site") return;
   e.preventDefault();
+  const grid = e.currentTarget;
+  const dragging = document.querySelector(".site-tile.dragging");
+  if (dragging && dragging.parentElement !== grid && e.target === grid) {
+    grid.insertBefore(dragging, grid.querySelector(".add-tile"));
+  }
 }
 
 function onItemsGridDrop(e) {
@@ -177,10 +199,7 @@ function onItemsGridDrop(e) {
     ? tileIds.length
     : tileIds.indexOf(dragPayload.itemId);
   targetCat.items.splice(insertIndex, 0, item);
-
-  dragPayload = null;
   persist();
-  render();
 }
 
 // ---------- Drag & drop: categories ----------
@@ -203,19 +222,13 @@ function onCategoryDrop(e) {
   const targetEl = e.currentTarget;
   targetEl.classList.remove("drag-over");
   const targetCatId = targetEl.dataset.categoryId;
-  if (targetCatId === dragPayload.catId) {
-    dragPayload = null;
-    return;
-  }
+  if (targetCatId === dragPayload.catId) return;
 
   const fromIndex = state.categories.findIndex((c) => c.id === dragPayload.catId);
   const toIndex = state.categories.findIndex((c) => c.id === targetCatId);
   const [moved] = state.categories.splice(fromIndex, 1);
   state.categories.splice(toIndex, 0, moved);
-
-  dragPayload = null;
   persist();
-  render();
 }
 
 // ---------- Site modal ----------
@@ -316,6 +329,8 @@ document.getElementById("category-save-btn").addEventListener("click", async () 
 });
 categoryDeleteBtn.addEventListener("click", async () => {
   const id = categoryIdInput.value;
+  const cat = findCategory(id);
+  if (!confirm(`确定删除分类「${cat.name}」及其中 ${cat.items.length} 个网址吗？`)) return;
   state.categories = state.categories.filter((c) => c.id !== id);
   await persist();
   closeCategoryModal();
@@ -327,9 +342,27 @@ categoryDeleteBtn.addEventListener("click", async () => {
   modal.addEventListener("click", (e) => {
     if (e.target === modal) modal.classList.add("hidden");
   });
+  modal.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") modal.classList.add("hidden");
+    if (e.key === "Enter" && e.target.tagName === "INPUT") {
+      modal.querySelector(".btn-primary").click();
+    }
+  });
 });
 
 // ---------- Search bar ----------
+
+const SEARCH_ENGINES = {
+  google: "https://www.google.com/search?q=",
+  bing: "https://www.bing.com/search?q=",
+  baidu: "https://www.baidu.com/s?wd=",
+};
+const engineSelect = document.getElementById("engine-select");
+engineSelect.addEventListener("change", () => {
+  state.engine = engineSelect.value;
+  persist();
+  document.getElementById("search-input").focus();
+});
 
 document.getElementById("search-input").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
@@ -338,7 +371,7 @@ document.getElementById("search-input").addEventListener("keydown", (e) => {
   const looksLikeUrl = /^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)|(^[\w-]+\.[a-z]{2,}(\/.*)?$)/i.test(value);
   window.location.href = looksLikeUrl
     ? normalizeUrl(value)
-    : `https://www.google.com/search?q=${encodeURIComponent(value)}`;
+    : (SEARCH_ENGINES[state.engine] || SEARCH_ENGINES.google) + encodeURIComponent(value);
 });
 
 // ---------- Import / export ----------
@@ -361,7 +394,10 @@ importFileInput.addEventListener("change", async (e) => {
   const text = await file.text();
   try {
     const data = JSON.parse(text);
-    if (!Array.isArray(data.categories)) throw new Error("invalid");
+    const valid = Array.isArray(data.categories) && data.categories.every(
+      (c) => c.id && typeof c.name === "string" && Array.isArray(c.items)
+    );
+    if (!valid) throw new Error("invalid");
     state = data;
     await persist();
     render();
@@ -376,5 +412,6 @@ importFileInput.addEventListener("change", async (e) => {
 
 (async function init() {
   state = await Storage.load();
+  if (SEARCH_ENGINES[state.engine]) engineSelect.value = state.engine;
   render();
 })();

@@ -8,7 +8,12 @@
 <body>
   <header class="topbar">
     <div class="search-wrap">
-      <input id="search-input" type="text" placeholder="搜索 Google，或直接输入网址…" autofocus>
+      <select id="engine-select" title="搜索引擎">
+        <option value="google">Google</option>
+        <option value="bing">Bing</option>
+        <option value="baidu">百度</option>
+      </select>
+      <input id="search-input" type="text" placeholder="搜索，或直接输入网址…" autofocus>
     </div>
     <div class="topbar-actions">
       <button id="add-category-btn" class="btn btn-ghost" title="新增分类">+ 分类</button>
